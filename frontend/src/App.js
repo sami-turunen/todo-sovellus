@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 
 function App() {
@@ -10,6 +10,12 @@ function App() {
   const [taskName, setTaskName] = useState("");
   const [editData, setEditData] = useState(null);
 
+  useEffect(() => {
+    fetch("http://localhost:3001/api/todos")
+      .then((response) => response.json())
+      .then((data) => setTasks(data));
+  }, []);
+
   const openAddModal = () => {
     setEditData(null);
     setTaskName("");
@@ -18,37 +24,60 @@ function App() {
 
   const openEditModal = (task, list, setList) => {
     setEditData({ task, list, setList });
-    setTaskName(task);
+    setTaskName(task.todo);
     setIsOpen(true);
   };
 
-  const saveTask = () => {
+  const saveTask = async () => {
     if (!taskName.trim()) return;
 
     if (editData) {
-      const { task, list, setList } = editData;
-      setList(list.map(t => (t === task ? taskName : t)));
+      const response = await fetch(
+        `http://localhost:3001/api/todos/${editData.task._id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ todo: taskName }),
+        },
+      );
+
+      const updatedTask = await response.json();
+
+      editData.setList((prevList) =>
+        prevList.map((t) => (t._id === updatedTask._id ? updatedTask : t)),
+      );
     } else {
-      setTasks([...tasks, taskName]);
+      const response = await fetch("http://localhost:3001/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ todo: taskName }),
+      });
+
+      const newTask = await response.json();
+      setTasks([...tasks, newTask]);
     }
 
     setIsOpen(false);
     setTaskName("");
+    setEditData(null);
   };
 
   const deleteTask = (task, list, setList) => {
     if (window.confirm("Poistetaanko tehtävä?")) {
-      setList(list.filter(t => t !== task));
+      fetch(`http://localhost:3001/api/todos/${task._id}`, {
+        method: "DELETE",
+      });
+      setList(list.filter((t) => t !== task));
     }
   };
 
   const moveToInProgress = (task) => {
-    setTasks(tasks.filter(t => t !== task));
+    setTasks(tasks.filter((t) => t !== task));
     setInProgress([...inProgress, task]);
   };
 
   const moveToDone = (task) => {
-    setInProgress(inProgress.filter(t => t !== task));
+    setInProgress(inProgress.filter((t) => t !== task));
     setDone([...done, task]);
   };
 
@@ -127,13 +156,12 @@ function Column({
   return (
     <div className="column">
       <h2>{title}</h2>
-      {items.map((task, index) => (
-        <div className={`task ${done ? "done-task" : ""}`} key={index}>
-          <span>{task}</span>
+      {items.map((task) => (
+        <div className={`task ${done ? "done-task" : ""}`} key={task._id}>
+          <span>{task.todo}</span>
+
           <div className="buttons">
-            {onMove && (
-              <button onClick={() => onMove(task)}>{moveText}</button>
-            )}
+            {onMove && <button onClick={() => onMove(task)}>{moveText}</button>}
             <button onClick={() => onEdit(task, items, setList)}>✏️</button>
             <button onClick={() => onDelete(task, items, setList)}>🗑️</button>
           </div>
