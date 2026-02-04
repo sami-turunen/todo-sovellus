@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import "dotenv/config";
-import Todo from "./models/Todo";
+import Todo from "./models/Todo.js";
 
 const app = express();
 
@@ -41,15 +41,19 @@ app.post("/api/todos", async (req, res) => {
 
 app.put("/api/todos/:id", async (req, res) => {
   const { id } = req.params;
-  const { isCompleted } = req.body;
-  const todo = await Todo.findById(id);
-  if (!todo) {
+  const { isCompleted, todo } = req.body;
+
+  const pickedTodo = await Todo.findById(id);
+  if (!pickedTodo) {
     return res.status(404).json({ error: "Todo not found" });
   }
 
-  todo.isCompleted = isCompleted;
-  await todo.save();
-  res.json(todo);
+  if (todo !== undefined) pickedTodo.todo = todo;
+
+  if (isCompleted !== undefined) pickedTodo.isCompleted = isCompleted;
+
+  await pickedTodo.save();
+  res.json(pickedTodo);
 });
 
 app.delete("/api/todos/:id", async (req, res) => {
